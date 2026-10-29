@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>Sample Atom News</title>
+  <link href="https://atom.example.com/"/>
+  <id>urn:example:atom-feed</id>
+  <updated>2026-10-28T10:00:00Z</updated>
+  <entry>
+    <title>Atom entry about rail services</title>
+    <id>urn:example:entry-1</id>
+    <link href="https://atom.example.com/rail"/>
+    <summary>Timetable changes start Monday.</summary>
+    <updated>2026-10-28T10:00:00Z</updated>
+  </entry>
+</feed>

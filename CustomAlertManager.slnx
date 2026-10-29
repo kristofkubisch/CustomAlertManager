@@ -1,0 +1,8 @@
+<Solution>
+  <Project Path="CustomAlertManager.AlertSender/CustomAlertManager.AlertSender.csproj" />
+  <Project Path="CustomAlertManager.Common/CustomAlertManager.Common.csproj" />
+  <Project Path="CustomAlertManager.Prototype/CustomAlertManager.Prototype.csproj" />
+  <Project Path="CustomAlertManager.RssReader/CustomAlertManager.RssReader.csproj" />
+  <Project Path="CustomAlertManager.Scheduler/CustomAlertManager.Scheduler.csproj" />
+  <Project Path="CustomAlertManager.Tests/CustomAlertManager.Tests.csproj" />
+</Solution>

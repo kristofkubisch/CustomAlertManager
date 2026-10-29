@@ -1,0 +1,33 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.4" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CustomAlertManager.Common\CustomAlertManager.Common.csproj" />
+    <ProjectReference Include="..\CustomAlertManager.RssReader\CustomAlertManager.RssReader.csproj" />
+    <ProjectReference Include="..\CustomAlertManager.AlertSender\CustomAlertManager.AlertSender.csproj" />
+    <ProjectReference Include="..\CustomAlertManager.Scheduler\CustomAlertManager.Scheduler.csproj" />
+    <ProjectReference Include="..\CustomAlertManager.Prototype\CustomAlertManager.Prototype.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="RssReader\Samples\*.xml" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

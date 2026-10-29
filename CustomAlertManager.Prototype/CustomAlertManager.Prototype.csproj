@@ -1,0 +1,17 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\CustomAlertManager.Common\CustomAlertManager.Common.csproj" />
+    <ProjectReference Include="..\CustomAlertManager.RssReader\CustomAlertManager.RssReader.csproj" />
+    <ProjectReference Include="..\CustomAlertManager.AlertSender\CustomAlertManager.AlertSender.csproj" />
+    <ProjectReference Include="..\CustomAlertManager.Scheduler\CustomAlertManager.Scheduler.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
