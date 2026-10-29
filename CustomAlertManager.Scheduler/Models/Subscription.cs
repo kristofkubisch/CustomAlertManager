@@ -1,7 +1,10 @@
 namespace CustomAlertManager.Scheduler.Models;
 
 public sealed record Subscription(
-    IReadOnlyList<string> FeedUrls,
+    int Id,
+    TimeSpan Frequency,
+    DateTimeOffset? LastRunAt,
+    DateTimeOffset LastAlertAt,
+    IReadOnlyList<SourceRef> Sources,
     IReadOnlyList<string> IncludeTerms,
-    IReadOnlyList<string> ExcludeTerms,
-    TimeSpan Since);
+    IReadOnlyList<string> ExcludeTerms);

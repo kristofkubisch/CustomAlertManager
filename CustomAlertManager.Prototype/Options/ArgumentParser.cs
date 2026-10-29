@@ -15,7 +15,8 @@ public static class ArgumentParser
 
     private static readonly string[] KnownOptions = ["--feed", "--include", "--exclude", "--since"];
 
-    public static Subscription Parse(IReadOnlyList<string> args)
+    // The prototype runs once and stores nothing, so Id, Frequency and LastRunAt are placeholders.
+    public static Subscription Parse(IReadOnlyList<string> args, DateTimeOffset now)
     {
         var feedUrls = new List<string>();
         var includeTerms = new List<string>();
@@ -58,7 +59,19 @@ public static class ArgumentParser
             throw new ArgumentException("At least one --feed is required.");
         }
 
-        return new Subscription(feedUrls, includeTerms, excludeTerms, since);
+        var sources = feedUrls
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Select((url, index) => new SourceRef(index + 1, url))
+            .ToList();
+
+        return new Subscription(
+            Id: 0,
+            Frequency: TimeSpan.FromMinutes(1),
+            LastRunAt: null,
+            LastAlertAt: now - since,
+            Sources: sources,
+            IncludeTerms: includeTerms,
+            ExcludeTerms: excludeTerms);
     }
 
     public static TimeSpan ParseDuration(string value)

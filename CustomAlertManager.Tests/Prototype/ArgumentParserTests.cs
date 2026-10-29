@@ -4,6 +4,8 @@ namespace CustomAlertManager.Tests.Prototype;
 
 public class ArgumentParserTests
 {
+    private static readonly DateTimeOffset Now = new(2026, 10, 29, 12, 0, 0, TimeSpan.Zero);
+
     [Fact]
     public void Parse_AllOptions_ReadsEachValue()
     {
@@ -14,28 +16,39 @@ public class ArgumentParserTests
             "--include", "election, markets",
             "--exclude", "sport",
             "--since", "2h",
-        ]);
+        ], Now);
 
-        Assert.Equal(["https://feeds.example.com/a.xml", "https://feeds.example.com/b.xml"], subscription.FeedUrls);
+        Assert.Equal(
+            ["https://feeds.example.com/a.xml", "https://feeds.example.com/b.xml"],
+            subscription.Sources.Select(source => source.Url));
         Assert.Equal(["election", "markets"], subscription.IncludeTerms);
         Assert.Equal(["sport"], subscription.ExcludeTerms);
-        Assert.Equal(TimeSpan.FromHours(2), subscription.Since);
+        Assert.Equal(Now - TimeSpan.FromHours(2), subscription.LastAlertAt);
     }
 
     [Fact]
     public void Parse_NoSince_DefaultsToTwentyFourHours()
     {
-        var subscription = ArgumentParser.Parse(["--feed", "https://feeds.example.com/a.xml"]);
+        var subscription = ArgumentParser.Parse(["--feed", "https://feeds.example.com/a.xml"], Now);
 
-        Assert.Equal(TimeSpan.FromHours(24), subscription.Since);
+        Assert.Equal(Now - TimeSpan.FromHours(24), subscription.LastAlertAt);
         Assert.Empty(subscription.IncludeTerms);
         Assert.Empty(subscription.ExcludeTerms);
     }
 
     [Fact]
+    public void Parse_DuplicateFeedUrls_AreKeptOnce()
+    {
+        var subscription = ArgumentParser.Parse(
+            ["--feed", "https://feeds.example.com/a.xml", "--feed", "https://FEEDS.example.com/a.xml"], Now);
+
+        Assert.Single(subscription.Sources);
+    }
+
+    [Fact]
     public void Parse_NoFeed_Throws()
     {
-        var ex = Assert.Throws<ArgumentException>(() => ArgumentParser.Parse(["--include", "election"]));
+        var ex = Assert.Throws<ArgumentException>(() => ArgumentParser.Parse(["--include", "election"], Now));
 
         Assert.Contains("--feed", ex.Message);
     }
@@ -43,20 +56,20 @@ public class ArgumentParserTests
     [Fact]
     public void Parse_NonHttpFeedUrl_Throws()
     {
-        Assert.Throws<ArgumentException>(() => ArgumentParser.Parse(["--feed", "file:///etc/passwd"]));
+        Assert.Throws<ArgumentException>(() => ArgumentParser.Parse(["--feed", "file:///etc/passwd"], Now));
     }
 
     [Fact]
     public void Parse_OptionWithoutValue_Throws()
     {
-        Assert.Throws<ArgumentException>(() => ArgumentParser.Parse(["--feed"]));
+        Assert.Throws<ArgumentException>(() => ArgumentParser.Parse(["--feed"], Now));
     }
 
     [Fact]
     public void Parse_UnknownOption_Throws()
     {
         var ex = Assert.Throws<ArgumentException>(() =>
-            ArgumentParser.Parse(["--feed", "https://feeds.example.com/a.xml", "--bogus", "x"]));
+            ArgumentParser.Parse(["--feed", "https://feeds.example.com/a.xml", "--bogus", "x"], Now));
 
         Assert.Contains("--bogus", ex.Message);
     }

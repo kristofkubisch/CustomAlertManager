@@ -6,7 +6,7 @@ namespace CustomAlertManager.Tests.Scheduler;
 public class KeywordFilterTests
 {
     private static FeedItem Item(string title, string summary = "") =>
-        new("Source", title, summary, "https://example.com", DateTimeOffset.UtcNow);
+        new("Source", title, summary, "https://example.com", DateTimeOffset.UtcNow, title);
 
     [Fact]
     public void IsMatch_IncludeTermInTitle_IsCaseInsensitive()

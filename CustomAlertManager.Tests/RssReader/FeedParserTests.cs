@@ -17,6 +17,7 @@ public class FeedParserTests
         Assert.Equal("Sample News", election.SourceName);
         Assert.Equal("Counting has finished in the national vote.", election.Summary);
         Assert.Equal("https://news.example.com/election", election.Link);
+        Assert.Equal("https://news.example.com/election", election.ItemId);
         Assert.Equal(new DateTimeOffset(2026, 10, 28, 9, 30, 0, TimeSpan.Zero), election.PublishedAt);
     }
 

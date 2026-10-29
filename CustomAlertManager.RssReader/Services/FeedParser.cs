@@ -12,13 +12,21 @@ public static class FeedParser
         var feed = SyndicationFeed.Load(reader);
         var sourceName = feed.Title?.Text is { Length: > 0 } title ? title : sourceUrl;
 
-        return feed.Items
-            .Select(item => new FeedItem(
+        return feed.Items.Select(item =>
+        {
+            var itemTitle = item.Title?.Text ?? string.Empty;
+            var link = item.Links.FirstOrDefault()?.Uri.ToString() ?? string.Empty;
+            var itemId = !string.IsNullOrWhiteSpace(item.Id) ? item.Id
+                : link.Length > 0 ? link
+                : itemTitle;
+
+            return new FeedItem(
                 SourceName: sourceName,
-                Title: item.Title?.Text ?? string.Empty,
+                Title: itemTitle,
                 Summary: item.Summary?.Text ?? string.Empty,
-                Link: item.Links.FirstOrDefault()?.Uri.ToString() ?? string.Empty,
-                PublishedAt: item.PublishDate == default ? fallbackDate : item.PublishDate))
-            .ToList();
+                Link: link,
+                PublishedAt: item.PublishDate == default ? fallbackDate : item.PublishDate,
+                ItemId: itemId);
+        }).ToList();
     }
 }
