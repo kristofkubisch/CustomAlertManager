@@ -9,7 +9,7 @@ namespace CustomAlertManager.Web.Pages.Admin.Subscriptions;
 
 // Admins can see and switch off every user's subscriptions. Running them is limited to the owner, see Admin/AlertTests.
 [Authorize(Roles = "Admin")]
-public sealed class IndexModel(AlertDbContext db) : PageModel
+public sealed class IndexModel(AlertDbContext db, ILogger<IndexModel> logger) : PageModel
 {
     public List<SubscriptionRow> Rows { get; private set; } = [];
 
@@ -25,6 +25,7 @@ public sealed class IndexModel(AlertDbContext db) : PageModel
         }
 
         subscription.IsEnabled = !subscription.IsEnabled;
+        logger.LogInformation("Admin {Admin} {Action} subscription {Subscription}", User.Identity?.Name, subscription.IsEnabled ? "enabled" : "disabled", subscription.Name);
         await db.SaveChangesAsync(cancellationToken);
         TempData["Status"] = $"'{subscription.Name}' {(subscription.IsEnabled ? "enabled" : "disabled")}.";
         return RedirectToPage();
@@ -40,6 +41,7 @@ public sealed class IndexModel(AlertDbContext db) : PageModel
 
         var name = subscription.Name;
         db.AlertSubscriptions.Remove(subscription);
+        logger.LogInformation("Admin {Admin} deleted subscription {Subscription}", User.Identity?.Name, name);
         await db.SaveChangesAsync(cancellationToken);
         TempData["Status"] = $"Subscription '{name}' deleted.";
         return RedirectToPage();

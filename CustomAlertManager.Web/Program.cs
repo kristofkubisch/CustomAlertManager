@@ -1,3 +1,4 @@
+using Serilog;
 using CustomAlertManager.AlertSender.Interfaces;
 using CustomAlertManager.AlertSender.Models;
 using CustomAlertManager.AlertSender.Services;
@@ -15,6 +16,12 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Host.UseSerilog((context, logging) => logging
+    .MinimumLevel.Information()
+    .MinimumLevel.Override("Microsoft", Serilog.Events.LogEventLevel.Warning)
+    .WriteTo.Console()
+    .WriteTo.File(Path.Combine(CustomAlertManager.Common.Services.RepositoryPaths.LogDirectory, "web-.log"), rollingInterval: RollingInterval.Day, retainedFileCountLimit: 14));
 var configuration = builder.Configuration;
 
 var connectionString = configuration.GetConnectionString("AlertDatabase")
@@ -49,13 +56,16 @@ builder.Services.AddHttpClient<IFeedFetcher, HttpFeedFetcher>(client =>
 {
     client.Timeout = TimeSpan.FromSeconds(30);
     client.DefaultRequestHeaders.UserAgent.ParseAdd("CustomAlertManager.Web/1.0");
-});
+})
+    // Refuses private and local addresses on every connection, including after redirects.
+    .ConfigurePrimaryHttpMessageHandler(() => PublicOnlyConnector.CreateHandler());
 builder.Services.AddTransient<IAlertEngine, AlertEngine>();
 builder.Services.AddScoped<SubscriptionTestRunner>();
 builder.Services.AddTransient<IAlertChannel>(provider => provider.GetRequiredService<SlackAlertChannel>());
 builder.Services.AddTransient<IAlertChannel>(provider => new SendGridAlertChannel(provider.GetRequiredService<IEmailSender>()));
 
 builder.Services.AddSingleton<TargetVerificationTokens>();
+builder.Services.AddHealthChecks().AddCheck<DatabaseHealthCheck>("database");
 builder.Services.AddScoped<SubscriptionService>();
 builder.Services.AddScoped<NewsSourceService>();
 builder.Services.AddScoped<UserAdministrationService>();
@@ -89,6 +99,17 @@ builder.Services.AddRazorPages(options =>
 
 var app = builder.Build();
 
+var startupLogger = app.Services.GetRequiredService<ILogger<Program>>();
+if (string.IsNullOrWhiteSpace(configuration["SendGrid:ApiKey"]))
+{
+    startupLogger.LogWarning("SendGrid:ApiKey is not configured; email, confirmation and password-reset mail will fail.");
+}
+
+if (string.IsNullOrWhiteSpace(configuration["Admin:Password"]))
+{
+    startupLogger.LogWarning("Admin:Password is not configured; the default admin account is not created.");
+}
+
 var seed = configuration.GetValue<bool>("Seed:Enabled")
     ? new DevSeedOptions(configuration["Seed:SlackWebhookUrl"], configuration["Seed:EmailAddress"])
     : null;
@@ -113,12 +134,21 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
+app.Use(async (context, next) =>
+{
+    context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    context.Response.Headers["X-Frame-Options"] = "DENY";
+    context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+    await next();
+});
+
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapRazorPages();
+app.MapHealthChecks("/health").AllowAnonymous();
 
 app.Run();
 

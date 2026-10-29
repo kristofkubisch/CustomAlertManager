@@ -25,7 +25,6 @@
     <ProjectReference Include="..\CustomAlertManager.RssReader\CustomAlertManager.RssReader.csproj" />
     <ProjectReference Include="..\CustomAlertManager.AlertSender\CustomAlertManager.AlertSender.csproj" />
     <ProjectReference Include="..\CustomAlertManager.Scheduler\CustomAlertManager.Scheduler.csproj" />
-    <ProjectReference Include="..\CustomAlertManager.Prototype\CustomAlertManager.Prototype.csproj" />
     <ProjectReference Include="..\CustomAlertManager.Data\CustomAlertManager.Data.csproj" />
     <ProjectReference Include="..\CustomAlertManager.Web\CustomAlertManager.Web.csproj" />
   </ItemGroup>

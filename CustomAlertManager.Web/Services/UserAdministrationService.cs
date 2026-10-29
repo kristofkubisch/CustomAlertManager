@@ -7,7 +7,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CustomAlertManager.Web.Services;
 
-public sealed class UserAdministrationService(AlertDbContext db, UserManager<ApplicationUser> users)
+public sealed class UserAdministrationService(
+    AlertDbContext db,
+    UserManager<ApplicationUser> users,
+    ILogger<UserAdministrationService> logger)
 {
     // Returns an error message, or null when the change was made.
     public async Task<string?> SetActiveAsync(int userId, int actingAdminId, bool isActive, CancellationToken cancellationToken)
@@ -32,6 +35,7 @@ public sealed class UserAdministrationService(AlertDbContext db, UserManager<App
         }
 
         user.IsActive = isActive;
+        logger.LogInformation("Admin {Admin} {Action} user {UserName}", actingAdminId, isActive ? "activated" : "deactivated", user.UserName);
         await users.UpdateAsync(user);
 
         // Changing the security stamp signs the user out everywhere, so existing sessions are checked again.
@@ -77,6 +81,7 @@ public sealed class UserAdministrationService(AlertDbContext db, UserManager<App
 
         // The user's subscriptions, their alerts and their roles are removed by the database cascade.
         var result = await users.DeleteAsync(user);
+        logger.LogInformation("Admin {Admin} deleted user {UserName} and their subscriptions and targets", actingAdminId, user.UserName);
         return result.Succeeded ? null : string.Join("; ", result.Errors.Select(error => error.Description));
     }
 

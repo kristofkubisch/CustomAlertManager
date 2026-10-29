@@ -3,7 +3,7 @@ using CustomAlertManager.Data.Services;
 namespace CustomAlertManager.Tests.Data;
 
 [Collection("SqlDatabase")]
-public class SqlRunLockTests(SqlDatabaseFixture fixture)
+public class SqlRunLockTests
 {
     [Fact]
     public async Task TryAcquireAsync_WhileHeld_ReturnsNullUntilReleased()

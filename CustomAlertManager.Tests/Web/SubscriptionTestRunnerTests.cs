@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore;
 namespace CustomAlertManager.Tests.Web;
 
 [Collection("SqlDatabase")]
-public class SubscriptionTestRunnerTests(SqlDatabaseFixture fixture)
+public class SubscriptionTestRunnerTests
 {
     private static readonly DateTimeOffset Now = new(2026, 10, 29, 12, 0, 0, TimeSpan.Zero);
 

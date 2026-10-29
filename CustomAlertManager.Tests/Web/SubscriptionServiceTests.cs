@@ -10,7 +10,7 @@ using Microsoft.EntityFrameworkCore;
 namespace CustomAlertManager.Tests.Web;
 
 [Collection("SqlDatabase")]
-public class SubscriptionServiceTests(SqlDatabaseFixture fixture)
+public class SubscriptionServiceTests
 {
     [Fact]
     public async Task CreateAsync_ThenListForOwner_ReturnsOnlyThatOwnersSubscriptions()

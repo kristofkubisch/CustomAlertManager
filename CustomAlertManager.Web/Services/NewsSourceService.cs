@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CustomAlertManager.Web.Services;
 
-public sealed class NewsSourceService(AlertDbContext db)
+public sealed class NewsSourceService(AlertDbContext db, ILogger<NewsSourceService> logger)
 {
     public async Task<List<(string Field, string Message)>> ValidateAsync(
         string url,
@@ -30,6 +30,7 @@ public sealed class NewsSourceService(AlertDbContext db)
     public async Task CreateAsync(string name, string url, CancellationToken cancellationToken)
     {
         db.NewsSources.Add(new NewsSource { Name = name.Trim(), Url = url.Trim() });
+        logger.LogInformation("Admin added news source {Name} ({Url})", name.Trim(), url.Trim());
         await db.SaveChangesAsync(cancellationToken);
     }
 
@@ -43,6 +44,7 @@ public sealed class NewsSourceService(AlertDbContext db)
     public async Task SetActiveAsync(NewsSource source, bool isActive, CancellationToken cancellationToken)
     {
         source.IsActive = isActive;
+        logger.LogInformation("Admin {Action} news source {Name}", isActive ? "activated" : "deactivated", source.Name);
         await db.SaveChangesAsync(cancellationToken);
     }
 
@@ -55,6 +57,7 @@ public sealed class NewsSourceService(AlertDbContext db)
         }
 
         db.NewsSources.Remove(source);
+        logger.LogInformation("Admin deleted news source {Name}", source.Name);
         await db.SaveChangesAsync(cancellationToken);
         return true;
     }

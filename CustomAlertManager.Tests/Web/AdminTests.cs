@@ -3,7 +3,6 @@ using CustomAlertManager.AlertSender.Models;
 using CustomAlertManager.Data;
 using CustomAlertManager.Data.Entities;
 using CustomAlertManager.Data.Services;
-using CustomAlertManager.Data.Services;
 using CustomAlertManager.Web.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
