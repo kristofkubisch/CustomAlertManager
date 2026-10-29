@@ -1,0 +1,448 @@
+
+> Don’t implement anything yet, just evaluate the task and create an
+  implementation plan. When there are questions, ask instead of deciding
+  without user input. The base context for the sessions is the following:
+  I want to implement a .NET 8 application, using Microsoft SQL Server as a
+  database, with Entity Framework Core code-first implementation. The
+  application is a custom alert handler that can send alerts via email and
+  Slack (but the alert sending should be generic enough to be able to easily
+  add new channels in the future) based on news sources (RSS feeds in this
+  first implementation).
+  The following functions are needed:
+  •       User management (sign up/log in, authentication, authorization)
+  •       Admin users can add new data sources on a separate source management
+  admin page not available for ordinary users (for example BBC RSS feed)
+  •       Admin users can deactivate/delete users and user subscriptions on a
+  separate admin page not available for ordinary users
+  •       All users can add their email/Slack info to receive alerts to
+  •       All users can create multiple subscriptions, adding (per
+  subscription) multiple sources and multiple search words (both for inclusion
+  and exclusion) and multiple targets if they were set up (email/Slack)
+  •       Subscriptions can be easily modified, disabled or deleted
+  •       Subscriptions have a frequency parameter that determines how often
+  should alerts be sent ranging from 1 Minute to 1 hour
+  •       The main scheduler will send alerts based on the subscriptions
+  The main alert process should work like the following:
+  •       Check active subscriptions that are needed to be used based on the
+  frequency setting
+  •       Collect the needed sources and download the related XML data from the
+  feeds without multiple downloads
+  •       Iterate through the subscriptions and filter data based first on the
+  publication date (check the last alert date of the subscription)
+  •       Filter based on the search words
+  •       Store the alert in the database
+  •       Send the alert via the predetermined channels selected in the
+  subscription
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● The repo is empty apart from a .gitignore, so this is a greenfield build. I
+  haven't written any code. Here's my evaluation and plan, followed by the
+  decisions I need from you.
+
+  Evaluation
+
+  The requirements are clear and fit well with .NET 8 built-ins. The parts that
+  need care are:
+
+  - Alert semantics. "Last alert date" only works if you define how feed items
+    are timestamped, what happens on a subscription's first run, and what
+    happens to items with no publication date.
+  - Delivery vs. storage. Storing the alert before sending is the right call,
+    but it means a delivery log with retries. A failed Slack post must not lose
+    the alert.
+  - Abuse surface. Users can enter arbitrary email addresses and webhook URLs,
+    and admins enter arbitrary feed URLs. Without verification and SSRF
+    protection, the app can be used to spam third parties or probe internal
+    hosts.
+  - Overlapping runs. The scheduler must not process the same subscription twice
+    if runs overlap or if you later scale out.
+
+  Proposed solution structure
+
+  ┌───────────────────────────────────┬──────────────────────────────────────┐
+  │              Project              │               Purpose                │
+  ├───────────────────────────────────┼──────────────────────────────────────┤
+  │ CustomAlertManager.Web            │ ASP.NET Core host, Identity UI, user │
+  │                                   │  pages, /admin area                  │
+  ├───────────────────────────────────┼──────────────────────────────────────┤
+  │ CustomAlertManager.Domain         │ Entities and enums, no dependencies  │
+  ├───────────────────────────────────┼──────────────────────────────────────┤
+  │ CustomAlertManager.Application    │ Alert engine, feed fetcher, keyword  │
+  │                                   │ filter, IAlertChannel abstraction    │
+  ├───────────────────────────────────┼──────────────────────────────────────┤
+  │ CustomAlertManager.Infrastructure │ EF Core DbContext on SQL Server, RSS │
+  │                                   │  fetching, email/Slack channels      │
+  ├───────────────────────────────────┼──────────────────────────────────────┤
+  │ CustomAlertManager.Tests          │ xUnit tests for filter logic and     │
+  │                                   │ engine with fake feeds               │
+  └───────────────────────────────────┴──────────────────────────────────────┘
+
+  The engine lives in Application so it can run in-process now and move to a
+  separate Worker project later without a rewrite.
+
+  Data model (EF Core code-first)
+
+  - ApplicationUser (Identity) with IsActive
+  - NotificationTarget: user, type (Email/Slack), address or webhook,
+    IsVerified, IsEnabled
+  - NewsSource: name, URL, IsActive, LastFetchedAt, ETag, LastModified
+  - Subscription: user, name, IsEnabled, Frequency (minutes), LastAlertAt,
+    LastRunAt
+  - Join tables: SubscriptionSource, SubscriptionTarget
+  - SubscriptionKeyword: term, Include/Exclude
+  - FeedItem: source, item GUID, link, title, summary, published date. Unique on
+    (source, GUID).
+  - Alert: subscription, created at, and AlertItem rows linking to FeedItem
+  - AlertDelivery: alert, target, status, attempts, last error, sent at (drives
+    retries)
+
+  Alert engine
+
+  1. Select due subscriptions: enabled, owner active, at least one active
+     source, and now >= LastRunAt + Frequency. A 1-minute timer tick handles
+     1-minute frequencies.
+  2. Fetch once per source: distinct sources across all due subscriptions. Use
+     conditional GET (ETag/Last-Modified), a timeout, and bounded parallelism.
+     Parse with System.ServiceModel.Syndication.SyndicationFeed, which is built
+     into .NET 8 and reads both RSS and Atom.
+  3. Upsert FeedItems by (source, GUID) so repeated runs don't duplicate items.
+  4. Per subscription: take items from its sources published after LastAlertAt.
+  5. Keyword filter: case-insensitive match against title and summary. Items
+     must match all of the include terms (or any, depending on your choice) and
+     none of the exclude terms.
+  6. Store: in one transaction, create the Alert and AlertItems and advance
+     LastAlertAt and LastRunAt.
+  7. Dispatch: for each target, IAlertChannel.SendAsync. Write an AlertDelivery
+     row per target. Retry with backoff. A failed delivery never rolls back the
+     alert.
+  8. Concurrency: take a SQL Server application lock (sp_getapplock) per run so
+     only one engine instance processes at a time.
+
+  Channels are a Type-keyed registry of IAlertChannel implementations. Adding a
+  new channel means one new class plus one new enum value.
+
+  Security and admin
+
+  - ASP.NET Core Identity with roles Admin and User. /admin/** requires the
+    Admin role.
+  - Email targets need a confirmation link before they can receive alerts.
+  - Slack targets must match the hooks.slack.com pattern.
+  - Feed URLs must be http/https and must not resolve to private or loopback
+    addresses.
+  - SMTP credentials and webhook secrets go in user secrets or environment
+    variables, not in source.
+  - Deactivating a user is a flag, not a delete. The engine skips inactive
+    users. Deleting a user cascades to their subscriptions and targets.
+
+  Milestones
+
+  1. Solution scaffold, DbContext, first migration, SQL Server connection
+  2. Identity, roles, seeded admin account
+  3. Notification targets (CRUD plus email verification)
+  4. Source management (admin)
+  5. Subscription CRUD with sources, keywords, targets, frequency
+  6. Engine: fetch, filter, store, with unit tests
+  7. Channels: email, Slack, delivery log and retries
+  8. Admin pages for users and subscriptions
+  9. Hardening: logging, health checks, validation tests
+
+  Questions
+
+  I'll ask the four decisions that change the design most. The smaller ones have
+  defaults, listed after.
+
+● User answered Claude's questions:
+  ⎿  · Which UI approach should the web app use? → Razor Pages (Recommended)
+     · Where should the alert scheduler run? → Separate Worker service
+     · What should a new subscription send on its first run? → Only new items
+     after creation (Recommended)
+     · How should Slack and email be delivered? → Slack webhook + SendGrid/Graph
+     API
+
+● Your answers change the plan: Razor Pages, a separate Worker service,
+  baseline-at-creation for new subscriptions, and Slack webhooks with a
+  transactional email API. Before I finalize, I need to settle the email
+  provider and a few matching rules.
+
+● User answered Claude's questions:
+  ⎿  · Which transactional email API should be used? (You picked 'SendGrid/Graph
+     API', which names two options.) → SendGrid (Recommended)
+     · How should include keywords combine? → ANY include term matches
+     (Recommended)
+     · What about feed items with no publication date? → Use first-seen time
+     (Recommended)
+     · How should users choose the alert frequency? → Presets (Recommended)
+
+● Final plan
+
+  Nothing has been implemented. The repo still contains only .gitignore.
+
+  Decisions from your answers
+
+  - UI: Razor Pages, with Identity scaffolding and an /admin area restricted to
+    the Admin role.
+  - Scheduler: a separate Worker service that shares the SQL Server database
+    with the web app.
+  - First run: a new subscription's LastAlertAt is set to its creation time, so
+    only later items alert.
+  - Channels: Slack via incoming webhook. Email via SendGrid behind an
+    IAlertChannel abstraction.
+  - Include keywords: an item alerts if it matches any include term. Any exclude
+    term blocks it.
+  - Undated items: the first-seen ingest time is used as the publication date.
+  - Frequency: presets of 1, 5, 15, 30, and 60 minutes.
+
+  Structure
+
+  - CustomAlertManager.Web: Razor Pages, Identity, admin pages
+  - CustomAlertManager.Worker: the alert engine as a timer-driven hosted service
+  - CustomAlertManager.Domain: entities and enums
+  - CustomAlertManager.Application: engine, keyword filter, IAlertChannel
+    registry, and interfaces
+  - CustomAlertManager.Infrastructure: EF Core on SQL Server, RSS fetching,
+    SendGrid and Slack channels
+  - CustomAlertManager.Tests: xUnit tests for the filter and the engine with
+    fake feeds
+
+  Engine run, every minute
+
+  1. Select enabled subscriptions that are due. Owner must be active and sources
+     must be active.
+  2. Fetch each distinct source once, using ETag and Last-Modified conditional
+     GETs with timeouts.
+  3. Parse with SyndicationFeed and upsert FeedItem rows, unique on source plus
+     GUID.
+  4. For each subscription, take items published after LastAlertAt (undated
+     items use first-seen time).
+  5. Apply the keyword filter.
+  6. In one transaction, create the Alert and its AlertItems and advance
+     LastAlertAt and LastRunAt.
+  7. Dispatch to each target and record an AlertDelivery row. Retry with
+     backoff. A failed send never rolls back the stored alert.
+  8. Take a SQL Server application lock per run so overlapping runs cannot
+     double-send.
+
+  Security
+
+  - Email targets require a confirmation link before they receive alerts.
+  - Slack webhooks must match hooks.slack.com.
+  - Feed URLs must be http or https and must not resolve to private or loopback
+    addresses.
+  - SendGrid keys and Slack secrets go in user secrets or environment variables.
+
+  Admin
+
+  - Source management: create, edit, deactivate.
+  - Users: deactivate is a flag that stops the engine from processing their
+    subscriptions. Delete cascades to their subscriptions and targets.
+  - Subscriptions: list, disable, and delete.
+
+  Assumptions I made without asking. Tell me if any are wrong.
+
+  - SQL Server runs locally (LocalDB or Express, or Docker).
+  - Passwords follow Identity defaults and the first admin is seeded from
+    configuration.
+  - Test coverage is limited to the engine and filter. There are no UI tests in
+    the first pass.
+
+  Milestones
+
+  1. Solution scaffold, DbContext, first migration
+  2. Identity, roles, seeded admin
+  3. Notification targets with email confirmation
+  4. Source management
+  5. Subscription CRUD
+  6. Engine and filter with tests
+  7. Channels, delivery log, retries
+  8. Admin user and subscription pages
+  9. Logging, health checks, validation hardening
+
+  When you approve this plan, I'll start with milestone 1.
+
+> I want to reorder the steps so a testable prototype is created as soon as
+  possible. Creating a simple application prototype that can get RSS data and
+  return it in a console window based on simple filters should be the priority
+  as a proof of concept
+
+● Revised plan: prototype first
+
+  The prototype is a .NET 8 console app. It reads RSS feeds, applies keyword
+  filters, and prints the matching items. It has no database, no users, and no
+  web UI. The filter and fetch code is written so that later milestones can
+  reuse it unchanged.
+
+  Phase 1: Console prototype
+
+  - Project: CustomAlertManager.Prototype, a console app in the solution.
+  - Input: feed URLs, include keywords, exclude keywords, and a --since time.
+    These come from appsettings.json or command-line arguments. Example: --feed
+    https://feeds.bbci.co.uk/news/rss.xml --include "ukraine,election" --exclude
+    "sport" --since 2h.
+  - Fetch: HttpClient with a timeout. Each feed is downloaded once, even if
+    several subscriptions use it.
+  - Parse: System.ServiceModel.Syndication.SyndicationFeed, which handles RSS
+    and Atom.
+  - Filter: the same rules we agreed on. Case-insensitive. An item matches if it
+    contains any include term and no exclude term. Undated items use the
+    current time.
+  - Output: a console table or list with title, source, published time, and
+    link.
+  - Structure: IFeedFetcher, IKeywordFilter, and IAlertChannel interfaces from
+    day one. The console output is the first IAlertChannel.
+  - Tests: an xUnit project covering the filter rules and parsing a saved sample
+    RSS file. The sample lives in the repo, so tests don't need the network.
+
+  Done when: you can run the console app against the BBC feed with keywords and
+  see correct matches, and the tests pass.
+
+  Phase 2: Persist and schedule
+
+  - Add EF Core with SQL Server and the minimum tables for the engine:
+    NewsSource, Subscription, SubscriptionKeyword, SubscriptionSource, FeedItem,
+    Alert, AlertItem.
+  - Replace the command-line inputs with database rows. Store LastAlertAt and
+    deduplicate items by source and GUID.
+  - Add the Worker project. It runs the same engine on a one-minute timer and
+    respects frequency presets.
+  - Add the SQL Server application lock so runs cannot overlap.
+
+  Phase 3: Delivery
+
+  - Add AlertDelivery tracking and retries.
+  - Add the Slack webhook channel, then the SendGrid email channel.
+  - Targets are still managed through seed data or direct DB edits at this
+    stage.
+
+  Phase 4: Web app and accounts
+
+  - Razor Pages app with ASP.NET Core Identity, roles User and Admin, and seeded
+    admin.
+  - Users manage their own targets (with email confirmation) and subscriptions
+    (sources, keywords, targets, frequency).
+
+  Phase 5: Admin
+
+  - Source management.
+  - User deactivation and deletion.
+  - Subscription list, disable, and delete.
+
+  Phase 6: Hardening
+
+  - Feed URL SSRF checks and Slack URL validation.
+  - Logging and health checks.
+  - Expanded tests.
+
+  What changed from the previous order
+
+  - The original plan built the database and identity first, so nothing ran end
+    to end until Phase 6. Now the first runnable result is Phase 1, and each
+    later phase builds on tested code.
+  - The prototype's --since flag stands in for the database's LastAlertAt until
+    Phase 2.
+
+  Should I start Phase 1?
+
+> Implement Phase 1
+
+> Reorganize the application structure, don't store the files under src folder,
+  create separate projects for the Scheduler, RSS reader, alert sender. Each
+  project should look like CustomAlert.Manager. + project name, also store the
+  Interfaces in separate folders under the project. Separate the files based on
+  project area rather than functionality like Filtering or Channels. You can
+  create a Common project for shared items but try not to over use it
+
+> Change CustomAlert.Manager to CustomAlertManager
+
+> Implement phase 2 of the revised plan
+
+> Implement phase 3 of the revised plan
+
+> Implement phase 4 of the revised plan
+
+> integrate SendGrid email sending with the following instructions:
+  Verify
+  ‹ All languages
+  How to send email using C#
+  Make sure you have the prerequisites
+  Our library requires .NET version 4.5.2.
+
+  Create an API key
+  This allows your application to authenticate to our API and send mail. You
+  can enable or disable additional permissions on the API keys page.
+
+  My First API Key Name
+
+  Create an environment variable
+  Update the development environment (user space) with your SENDGRID_API_KEY.
+  For example, in Windows 10, please review this thread.
+
+  Install the package
+  The recommended installation uses the NuGet package manager. Run the
+  following:
+
+  Alternatively, you can download the SendGrid C# .NET library directly from
+  our Github repository.
+
+  EU Data Residency
+  For EU Data Resident sending (via an EU-pinned subuser), in the following
+  step you must include SetDataResidency:
+
+  Code will be auto-enabled below if EU subuser detected. For more information
+  on sending in the EU, visit our docs.
+  Send your first email
+  The following is the minimum needed code to send an email:
+
+  Implement and run the code above. If that runs without error, click “Next”
+  and we’ll check to see if your email came through SendGrid.
+  the api key should be stored in a config file, tha api key is:
+  "******"
+
+> A couple modifications are needed:
+  Clickin on add new target shouldn't open the source adding page in the same
+  tab
+  Exclude keywords shouldn't be mandatory
+  Change the database IDs to int
+  Add creation timestamps do database
+  Don't use AspNet prefix in database object names
+  Add test button for admins so they can test alerts
+
+> Show the add form in a modal on the same page.
+
+> When a user is added, by default they are normal users. in the signup you
+  should add a username which you need to use to login (instead of the email,
+  but keep the email address too).  Users should not be able to registre
+  multiple users with the same email address. Also add a default admin user
+  with the following credenttials:
+  Username: admin
+  Password: ****
+  email address: ****
+
+> When clicking the email verification link, the user shouldnt need to login,
+  for the verification to be finished.
+  The test alert function should work by sending a sample alert that looks
+  exactly like a normal one, without storing any data in the database.
+  Exclude keywords are still mandatory, they shouldn't be
+
+> The test alert should not just send a sample alert, but use the filters of
+  the selected subscription.
+  The subscriptions should also have a last checked timestamp.
+
+> Even admins should only be able to test their own subscriptions. On the
+  subscription page it shouldn't show the IsEnabled filed, also don't show the
+  red rectanlge for errors when ther aren't any errors.
+
+> The scheduler is not checking the subscriptions by frequency
+
+> - Push cannot contain secrets
+
+> Implement phase 5 of the revised plan
+
+> This account has been deactivated. Contact an administrator. for admin user
+
+> Deactivated user login doesn't show error message
+
+> Implement phase 6 of the revised plan
+
+> Move logs to main repository folder. Remove prototype project, check alerts
+  and warnings
