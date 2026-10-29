@@ -1,0 +1,23 @@
+@page "{id:int}"
+@model CustomAlertManager.Web.Pages.Admin.Sources.EditModel
+@{
+    ViewData["Title"] = "Edit source";
+}
+
+<h1 class="h3 mb-3">Edit source</h1>
+
+<form method="post" class="col-lg-6">
+    @if (!ViewContext.ModelState.IsValid) { <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div> }
+    <div class="mb-3">
+        <label asp-for="Input.Name" class="form-label"></label>
+        <input asp-for="Input.Name" class="form-control" />
+        <span asp-validation-for="Input.Name" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="Input.Url" class="form-label">Feed address (RSS or Atom)</label>
+        <input asp-for="Input.Url" class="form-control" />
+        <span asp-validation-for="Input.Url" class="text-danger"></span>
+    </div>
+    <button type="submit" class="btn btn-primary">Save source</button>
+    <a class="btn btn-link" asp-page="Index">Back to sources</a>
+</form>

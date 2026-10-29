@@ -21,7 +21,8 @@ public sealed class SqlDeliveryStore(IDbContextFactory<AlertDbContext> contextFa
         var rows = await db.AlertDeliveries
             .Where(delivery => delivery.Status == DeliveryStatus.Pending
                 && delivery.NextAttemptAt <= now
-                && delivery.NotificationTarget != null)
+                && delivery.NotificationTarget != null
+                && (delivery.NotificationTarget.OwnerId == null || db.Users.Any(user => user.Id == delivery.NotificationTarget.OwnerId && user.IsActive)))
             .OrderBy(delivery => delivery.NextAttemptAt)
             .Take(limit)
             .Include(delivery => delivery.NotificationTarget)

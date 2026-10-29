@@ -25,6 +25,9 @@
                             <li class="nav-item"><a class="nav-link" asp-page="/Targets/Index">Targets</a></li>
                             @if (User.IsInRole("Admin"))
                             {
+                                <li class="nav-item"><a class="nav-link" asp-page="/Admin/Sources/Index">Sources</a></li>
+                                <li class="nav-item"><a class="nav-link" asp-page="/Admin/Users/Index">Users</a></li>
+                                <li class="nav-item"><a class="nav-link" asp-page="/Admin/Subscriptions/Index">All subscriptions</a></li>
                                 <li class="nav-item"><a class="nav-link" asp-page="/Admin/AlertTests">Test alerts</a></li>
                             }
                         </ul>

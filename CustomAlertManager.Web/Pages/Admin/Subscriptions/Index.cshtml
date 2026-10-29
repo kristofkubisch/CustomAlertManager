@@ -1,0 +1,62 @@
+@page
+@model CustomAlertManager.Web.Pages.Admin.Subscriptions.IndexModel
+@{
+    ViewData["Title"] = "All subscriptions";
+}
+
+<h1 class="h3 mb-3">All subscriptions</h1>
+<p class="text-muted">Subscriptions from every user. Disabling stops the schedule for a subscription, and deleting removes it with its alert history.</p>
+
+@if (Model.Rows.Count == 0)
+{
+    <p>No subscriptions exist yet.</p>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table align-middle">
+            <thead>
+                <tr>
+                    <th>Subscription</th>
+                    <th>Owner</th>
+                    <th>Frequency</th>
+                    <th>Sources</th>
+                    <th>Last checked</th>
+                    <th>Status</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var subscription in Model.Rows)
+                {
+                    <tr>
+                        <td>@subscription.Name</td>
+                        <td>@(subscription.Owner ?? "(seeded)")</td>
+                        <td>Every @subscription.FrequencyMinutes min</td>
+                        <td>@subscription.SourceCount</td>
+                        <td>@(subscription.LastRunAt.HasValue ? subscription.LastRunAt.Value.ToLocalTime().ToString("g") : "Never")</td>
+                        <td>
+                            @if (subscription.IsEnabled)
+                            {
+                                <span class="badge bg-success">Active</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary">Disabled</span>
+                            }
+                        </td>
+                        <td class="text-end text-nowrap">
+                            <form method="post" class="d-inline" asp-page-handler="Toggle" asp-route-id="@subscription.Id">
+                                <button type="submit" class="btn btn-sm btn-outline-secondary">@(subscription.IsEnabled ? "Disable" : "Enable")</button>
+                            </form>
+                            <form method="post" class="d-inline" asp-page-handler="Delete" asp-route-id="@subscription.Id"
+                                  onsubmit="return confirm('Delete this subscription and its alert history?');">
+                                <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

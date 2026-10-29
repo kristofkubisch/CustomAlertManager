@@ -14,7 +14,8 @@ public sealed class SqlAlertStore(IDbContextFactory<AlertDbContext> contextFacto
             .Include(subscription => subscription.Sources)
                 .ThenInclude(link => link.NewsSource)
             .Include(subscription => subscription.Keywords)
-            .Where(subscription => subscription.IsEnabled)
+            .Where(subscription => subscription.IsEnabled
+                && (subscription.OwnerId == null || db.Users.Any(user => user.Id == subscription.OwnerId && user.IsActive)))
             .AsSplitQuery()
             .AsNoTracking()
             .ToListAsync(cancellationToken);

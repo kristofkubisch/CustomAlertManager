@@ -9,6 +9,8 @@ using CustomAlertManager.RssReader.Services;
 using CustomAlertManager.Scheduler.Interfaces;
 using CustomAlertManager.Scheduler.Services;
 using CustomAlertManager.Web.Services;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -55,11 +57,32 @@ builder.Services.AddTransient<IAlertChannel>(provider => new SendGridAlertChanne
 
 builder.Services.AddSingleton<TargetVerificationTokens>();
 builder.Services.AddScoped<SubscriptionService>();
+builder.Services.AddScoped<NewsSourceService>();
+builder.Services.AddScoped<UserAdministrationService>();
+
+builder.Services.AddAuthorization(options => options.AddPolicy("Admin", policy => policy.RequireRole("Admin")));
+
+// A deactivated user loses access on their next request, even while their login cookie is still valid.
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.Events.OnValidatePrincipal = async context =>
+    {
+        var users = context.HttpContext.RequestServices.GetRequiredService<UserManager<ApplicationUser>>();
+        var userId = context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
+        var user = userId is null ? null : await users.FindByIdAsync(userId);
+        if (user is null || !user.IsActive)
+        {
+            context.RejectPrincipal();
+            await context.HttpContext.SignOutAsync(IdentityConstants.ApplicationScheme);
+        }
+    };
+});
 
 builder.Services.AddRazorPages(options =>
 {
     options.Conventions.AuthorizeFolder("/Subscriptions");
     options.Conventions.AuthorizeFolder("/Targets");
+    options.Conventions.AuthorizeFolder("/Admin", "Admin");
     // The confirmation link from the email must work without signing in.
     options.Conventions.AllowAnonymousToPage("/Targets/Verify");
 });

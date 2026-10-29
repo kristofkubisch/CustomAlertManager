@@ -26,8 +26,20 @@ public sealed class LoginModel(SignInManager<ApplicationUser> signInManager) : P
             return Page();
         }
 
+        var username = Input.Username.Trim();
+
+        // A deactivated account gets its own message only when the password is also right, so the page
+        // does not reveal which usernames exist. Nothing is signed in, so there is nothing to undo.
+        var user = await signInManager.UserManager.FindByNameAsync(username);
+        if (user is { IsActive: false }
+            && await signInManager.UserManager.CheckPasswordAsync(user, Input.Password))
+        {
+            ModelState.AddModelError(string.Empty, "This account has been deactivated. Contact an administrator.");
+            return Page();
+        }
+
         var result = await signInManager.PasswordSignInAsync(
-            Input.Username.Trim(),
+            username,
             Input.Password,
             Input.RememberMe,
             lockoutOnFailure: true);

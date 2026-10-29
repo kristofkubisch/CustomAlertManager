@@ -1,0 +1,55 @@
+@page
+@model CustomAlertManager.Web.Pages.Admin.Users.IndexModel
+@{
+    ViewData["Title"] = "Users";
+}
+
+<h1 class="h3 mb-3">Users</h1>
+<p class="text-muted">Deactivated users cannot log in and their subscriptions do not run. Deleting a user also deletes their subscriptions and targets.</p>
+
+<div class="table-responsive">
+    <table class="table align-middle">
+        <thead>
+            <tr>
+                <th>Username</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Subscriptions</th>
+                <th>Created</th>
+                <th>Status</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var user in Model.Rows)
+            {
+                <tr>
+                    <td>@user.UserName</td>
+                    <td class="text-break">@user.Email</td>
+                    <td>@(user.IsAdmin ? "Admin" : "User")</td>
+                    <td>@user.SubscriptionCount</td>
+                    <td>@user.CreatedAt.ToLocalTime().ToString("g")</td>
+                    <td>
+                        @if (user.IsActive)
+                        {
+                            <span class="badge bg-success">Active</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-secondary">Deactivated</span>
+                        }
+                    </td>
+                    <td class="text-end text-nowrap">
+                        <form method="post" class="d-inline" asp-page-handler="Toggle" asp-route-id="@user.Id">
+                            <button type="submit" class="btn btn-sm btn-outline-secondary">@(user.IsActive ? "Deactivate" : "Activate")</button>
+                        </form>
+                        <form method="post" class="d-inline" asp-page-handler="Delete" asp-route-id="@user.Id"
+                              onsubmit="return confirm('Delete this user, with all their subscriptions and targets? This cannot be undone.');">
+                            <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
