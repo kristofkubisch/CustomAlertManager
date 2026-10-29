@@ -20,5 +20,7 @@ public sealed class AlertSubscription
 
     public List<SubscriptionKeyword> Keywords { get; } = [];
 
+    public List<SubscriptionTarget> Targets { get; } = [];
+
     public List<Alert> Alerts { get; } = [];
 }

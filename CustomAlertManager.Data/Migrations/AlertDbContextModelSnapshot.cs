@@ -43,6 +43,48 @@ namespace CustomAlertManager.Data.Migrations
                     b.ToTable("Alerts");
                 });
 
+            modelBuilder.Entity("CustomAlertManager.Data.Entities.AlertDelivery", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AlertId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("int");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTimeOffset?>("NextAttemptAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("NotificationTargetId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset?>("SentAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NotificationTargetId");
+
+                    b.HasIndex("AlertId", "NotificationTargetId")
+                        .IsUnique();
+
+                    b.HasIndex("Status", "NextAttemptAt");
+
+                    b.ToTable("AlertDeliveries");
+                });
+
             modelBuilder.Entity("CustomAlertManager.Data.Entities.AlertItem", b =>
                 {
                     b.Property<int>("Id")
@@ -132,6 +174,35 @@ namespace CustomAlertManager.Data.Migrations
                     b.ToTable("NewsSources");
                 });
 
+            modelBuilder.Entity("CustomAlertManager.Data.Entities.NotificationTarget", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Destination")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("nvarchar(2048)");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("NotificationTargets");
+                });
+
             modelBuilder.Entity("CustomAlertManager.Data.Entities.StoredFeedItem", b =>
                 {
                     b.Property<int>("Id")
@@ -217,6 +288,21 @@ namespace CustomAlertManager.Data.Migrations
                     b.ToTable("SubscriptionSources");
                 });
 
+            modelBuilder.Entity("CustomAlertManager.Data.Entities.SubscriptionTarget", b =>
+                {
+                    b.Property<int>("AlertSubscriptionId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("NotificationTargetId")
+                        .HasColumnType("int");
+
+                    b.HasKey("AlertSubscriptionId", "NotificationTargetId");
+
+                    b.HasIndex("NotificationTargetId");
+
+                    b.ToTable("SubscriptionTargets");
+                });
+
             modelBuilder.Entity("CustomAlertManager.Data.Entities.Alert", b =>
                 {
                     b.HasOne("CustomAlertManager.Data.Entities.AlertSubscription", "AlertSubscription")
@@ -226,6 +312,25 @@ namespace CustomAlertManager.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("AlertSubscription");
+                });
+
+            modelBuilder.Entity("CustomAlertManager.Data.Entities.AlertDelivery", b =>
+                {
+                    b.HasOne("CustomAlertManager.Data.Entities.Alert", "Alert")
+                        .WithMany("Deliveries")
+                        .HasForeignKey("AlertId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CustomAlertManager.Data.Entities.NotificationTarget", "NotificationTarget")
+                        .WithMany()
+                        .HasForeignKey("NotificationTargetId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Alert");
+
+                    b.Navigation("NotificationTarget");
                 });
 
             modelBuilder.Entity("CustomAlertManager.Data.Entities.AlertItem", b =>
@@ -286,8 +391,29 @@ namespace CustomAlertManager.Data.Migrations
                     b.Navigation("NewsSource");
                 });
 
+            modelBuilder.Entity("CustomAlertManager.Data.Entities.SubscriptionTarget", b =>
+                {
+                    b.HasOne("CustomAlertManager.Data.Entities.AlertSubscription", "AlertSubscription")
+                        .WithMany("Targets")
+                        .HasForeignKey("AlertSubscriptionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CustomAlertManager.Data.Entities.NotificationTarget", "NotificationTarget")
+                        .WithMany()
+                        .HasForeignKey("NotificationTargetId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("AlertSubscription");
+
+                    b.Navigation("NotificationTarget");
+                });
+
             modelBuilder.Entity("CustomAlertManager.Data.Entities.Alert", b =>
                 {
+                    b.Navigation("Deliveries");
+
                     b.Navigation("Items");
                 });
 
@@ -298,6 +424,8 @@ namespace CustomAlertManager.Data.Migrations
                     b.Navigation("Keywords");
 
                     b.Navigation("Sources");
+
+                    b.Navigation("Targets");
                 });
 #pragma warning restore 612, 618
         }

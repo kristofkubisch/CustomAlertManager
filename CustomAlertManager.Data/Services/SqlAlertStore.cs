@@ -112,6 +112,22 @@ public sealed class SqlAlertStore(IDbContextFactory<AlertDbContext> contextFacto
                 alert.Items.Add(new AlertItem { FeedItem = storedItem });
             }
 
+            var targetIds = await db.SubscriptionTargets
+                .Where(link => link.AlertSubscriptionId == subscriptionId && link.NotificationTarget.IsEnabled)
+                .Select(link => link.NotificationTargetId)
+                .ToListAsync(cancellationToken);
+
+            foreach (var targetId in targetIds)
+            {
+                alert.Deliveries.Add(new AlertDelivery
+                {
+                    NotificationTargetId = targetId,
+                    Status = DeliveryStatus.Pending,
+                    Attempts = 0,
+                    NextAttemptAt = runStartedAt,
+                });
+            }
+
             db.Alerts.Add(alert);
             subscription.LastAlertAt = runStartedAt;
         }

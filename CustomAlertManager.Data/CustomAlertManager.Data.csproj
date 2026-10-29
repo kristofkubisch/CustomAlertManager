@@ -17,6 +17,7 @@
   <ItemGroup>
     <ProjectReference Include="..\CustomAlertManager.Common\CustomAlertManager.Common.csproj" />
     <ProjectReference Include="..\CustomAlertManager.Scheduler\CustomAlertManager.Scheduler.csproj" />
+    <ProjectReference Include="..\CustomAlertManager.AlertSender\CustomAlertManager.AlertSender.csproj" />
   </ItemGroup>
 
 </Project>

@@ -10,6 +10,7 @@ public static class AlertDataServiceCollectionExtensions
     {
         services.AddDbContextFactory<AlertDbContext>(options => options.UseSqlServer(connectionString));
         services.AddSingleton<IAlertStore, SqlAlertStore>();
+        services.AddSingleton<IDeliveryStore, SqlDeliveryStore>();
         services.AddSingleton<IRunLock>(new SqlRunLock(connectionString));
         return services;
     }

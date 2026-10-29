@@ -1,9 +1,9 @@
-using CustomAlertManager.AlertSender.Interfaces;
 using CustomAlertManager.Common.Models;
 
 namespace CustomAlertManager.AlertSender.Services;
 
-public sealed class ConsoleAlertChannel : IAlertChannel
+// Prints matches to the console. Used by the prototype host, not as a delivery target.
+public sealed class ConsoleAlertChannel
 {
     public Task SendAsync(IReadOnlyList<FeedItem> items, CancellationToken cancellationToken)
     {

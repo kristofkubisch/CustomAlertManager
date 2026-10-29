@@ -11,4 +11,6 @@ public sealed class Alert
     public AlertSubscription AlertSubscription { get; set; } = null!;
 
     public List<AlertItem> Items { get; } = [];
+
+    public List<AlertDelivery> Deliveries { get; } = [];
 }

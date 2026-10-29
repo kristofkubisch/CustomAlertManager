@@ -1,14 +1,12 @@
-using CustomAlertManager.AlertSender.Interfaces;
 using CustomAlertManager.Scheduler.Interfaces;
 using CustomAlertManager.Scheduler.Services;
 
 namespace CustomAlertManager.Worker;
 
 public sealed class AlertWorker(
-    IAlertEngine engine,
+    IServiceScopeFactory scopeFactory,
     IAlertStore store,
     IRunLock runLock,
-    IAlertChannel channel,
     ILogger<AlertWorker> logger) : BackgroundService
 {
     private static readonly TimeSpan Interval = TimeSpan.FromMinutes(1);
@@ -39,31 +37,35 @@ public sealed class AlertWorker(
             return;
         }
 
+        // A scope per cycle gives the engine and channels fresh HTTP clients each time.
+        await using var scope = scopeFactory.CreateAsyncScope();
+        var engine = scope.ServiceProvider.GetRequiredService<IAlertEngine>();
+        var dispatcher = scope.ServiceProvider.GetRequiredService<IAlertDispatcher>();
+
         var now = DateTimeOffset.UtcNow;
         var due = DueSubscriptions.Select(await store.GetEnabledSubscriptionsAsync(cancellationToken), now);
-        if (due.Count == 0)
+        if (due.Count > 0)
         {
-            return;
-        }
+            var result = await engine.ProcessAsync(due, cancellationToken);
+            await store.SaveFetchedItemsAsync(result.FetchedItems, cancellationToken);
 
-        var result = await engine.ProcessAsync(due, cancellationToken);
-        await store.SaveFetchedItemsAsync(result.FetchedItems, cancellationToken);
-
-        // Each alert is stored before it is sent, so a failed send never loses it.
-        foreach (var subscriptionMatches in result.Matches)
-        {
-            await store.CompleteRunAsync(subscriptionMatches.SubscriptionId, now, subscriptionMatches.Items, cancellationToken);
-
-            if (subscriptionMatches.Items.Count > 0)
+            // Alerts and their pending deliveries are stored before anything is sent.
+            foreach (var subscriptionMatches in result.Matches)
             {
-                var items = subscriptionMatches.Items.Select(sourced => sourced.Item).ToList();
-                await channel.SendAsync(items, cancellationToken);
+                await store.CompleteRunAsync(subscriptionMatches.SubscriptionId, now, subscriptionMatches.Items, cancellationToken);
             }
+
+            logger.LogInformation(
+                "Ran {DueCount} due subscription(s); fetched {FetchedCount} item(s).",
+                due.Count,
+                result.FetchedItems.Count);
         }
 
-        logger.LogInformation(
-            "Ran {DueCount} due subscription(s); fetched {FetchedCount} item(s).",
-            due.Count,
-            result.FetchedItems.Count);
+        // Runs every cycle so retries progress even when no subscription is due.
+        var attempts = await dispatcher.DispatchDueAsync(DateTimeOffset.UtcNow, cancellationToken);
+        if (attempts > 0)
+        {
+            logger.LogInformation("Made {AttemptCount} delivery attempt(s).", attempts);
+        }
     }
 }

@@ -23,8 +23,48 @@ public sealed class AlertDbContext(DbContextOptions<AlertDbContext> options) : D
 
     public DbSet<AlertItem> AlertItems => Set<AlertItem>();
 
+    public DbSet<NotificationTarget> NotificationTargets => Set<NotificationTarget>();
+
+    public DbSet<SubscriptionTarget> SubscriptionTargets => Set<SubscriptionTarget>();
+
+    public DbSet<AlertDelivery> AlertDeliveries => Set<AlertDelivery>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<NotificationTarget>(entity =>
+        {
+            entity.Property(e => e.Name).HasMaxLength(200);
+            entity.Property(e => e.Destination).HasMaxLength(2048);
+        });
+
+        modelBuilder.Entity<SubscriptionTarget>(entity =>
+        {
+            entity.HasKey(e => new { e.AlertSubscriptionId, e.NotificationTargetId });
+            entity.HasOne(e => e.AlertSubscription)
+                .WithMany(s => s.Targets)
+                .HasForeignKey(e => e.AlertSubscriptionId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.NotificationTarget)
+                .WithMany()
+                .HasForeignKey(e => e.NotificationTargetId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<AlertDelivery>(entity =>
+        {
+            entity.Property(e => e.LastError).HasMaxLength(1000);
+            entity.HasIndex(e => new { e.AlertId, e.NotificationTargetId }).IsUnique();
+            entity.HasIndex(e => new { e.Status, e.NextAttemptAt });
+            entity.HasOne(e => e.Alert)
+                .WithMany(a => a.Deliveries)
+                .HasForeignKey(e => e.AlertId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.NotificationTarget)
+                .WithMany()
+                .HasForeignKey(e => e.NotificationTargetId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
         modelBuilder.Entity<NewsSource>(entity =>
         {
             entity.Property(e => e.Name).HasMaxLength(200);
