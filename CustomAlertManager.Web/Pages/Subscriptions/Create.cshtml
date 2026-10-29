@@ -1,0 +1,14 @@
+@page
+@model CreateModel
+@{
+    ViewData["Title"] = "New subscription";
+}
+
+<h1 class="h3 mb-3">New subscription</h1>
+
+<form method="post">
+    @if (!ViewContext.ModelState.IsValid) { <div asp-validation-summary="All" class="alert alert-danger"></div> }
+    <partial name="_SubscriptionForm" model="Model.Input" view-data="ViewData" />
+    <button type="submit" class="btn btn-primary">Create subscription</button>
+    <a class="btn btn-link" asp-page="Index">Cancel</a>
+</form>

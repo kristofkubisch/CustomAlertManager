@@ -1,6 +1,6 @@
 namespace CustomAlertManager.Data.Entities;
 
-public sealed class StoredFeedItem
+public sealed class StoredFeedItem : TimestampedEntity
 {
     public int Id { get; set; }
 
@@ -17,7 +17,6 @@ public sealed class StoredFeedItem
 
     public DateTimeOffset PublishedAt { get; set; }
 
-    public DateTimeOffset FirstSeenAt { get; set; }
 
     public NewsSource NewsSource { get; set; } = null!;
 }

@@ -1,0 +1,11 @@
+@page
+@model VerifyModel
+@{
+    ViewData["Title"] = "Confirm email address";
+}
+
+<h1 class="h3 mb-3">Confirm email address</h1>
+
+<div class="alert @(Model.Confirmed ? "alert-success" : "alert-warning")">@Model.Message</div>
+
+<a asp-page="Index">Back to alert targets</a>

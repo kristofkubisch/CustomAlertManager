@@ -1,8 +1,11 @@
 namespace CustomAlertManager.Data.Entities;
 
-public sealed class AlertSubscription
+public sealed class AlertSubscription : TimestampedEntity
 {
     public int Id { get; set; }
+
+    // Null for subscriptions created by the development seed.
+    public int? OwnerId { get; set; }
 
     public string Name { get; set; } = string.Empty;
 
@@ -10,7 +13,6 @@ public sealed class AlertSubscription
 
     public int FrequencyMinutes { get; set; }
 
-    public DateTimeOffset CreatedAt { get; set; }
 
     public DateTimeOffset? LastRunAt { get; set; }
 

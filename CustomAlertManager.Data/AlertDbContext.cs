@@ -1,10 +1,12 @@
 using CustomAlertManager.Data.Entities;
 using CustomAlertManager.Scheduler.Models;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace CustomAlertManager.Data;
 
-public sealed class AlertDbContext(DbContextOptions<AlertDbContext> options) : DbContext(options)
+public sealed class AlertDbContext(DbContextOptions<AlertDbContext> options) : IdentityDbContext<ApplicationUser, IdentityRole<int>, int>(options)
 {
     public const string DefaultConnectionString =
         @"Server=(localdb)\MSSQLLocalDB;Database=CustomAlertManager;Trusted_Connection=True;TrustServerCertificate=True";
@@ -31,38 +33,55 @@ public sealed class AlertDbContext(DbContextOptions<AlertDbContext> options) : D
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        base.OnModelCreating(modelBuilder);
+
+        // Identity tables use plain names rather than the AspNet prefix.
+        modelBuilder.Entity<ApplicationUser>(entity =>
+        {
+            entity.ToTable("Users");
+            // Same index Identity creates, made unique so two accounts can never share an email address.
+            entity.HasIndex(user => user.NormalizedEmail).HasDatabaseName("EmailIndex").IsUnique();
+        });
+        modelBuilder.Entity<IdentityRole<int>>(entity => entity.ToTable("Roles"));
+        modelBuilder.Entity<IdentityUserRole<int>>(entity => entity.ToTable("UserRoles"));
+        modelBuilder.Entity<IdentityUserClaim<int>>(entity => entity.ToTable("UserClaims"));
+        modelBuilder.Entity<IdentityUserLogin<int>>(entity => entity.ToTable("UserLogins"));
+        modelBuilder.Entity<IdentityRoleClaim<int>>(entity => entity.ToTable("RoleClaims"));
+        modelBuilder.Entity<IdentityUserToken<int>>(entity => entity.ToTable("UserTokens"));
+
+        // Every table gets a creation timestamp, filled in by the database when the row is inserted.
+        modelBuilder.Entity<ApplicationUser>(entity =>
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("SYSDATETIMEOFFSET()"));
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+        {
+            if (typeof(TimestampedEntity).IsAssignableFrom(entityType.ClrType))
+            {
+                modelBuilder.Entity(entityType.ClrType)
+                    .Property(nameof(TimestampedEntity.CreatedAt))
+                    .HasDefaultValueSql("SYSDATETIMEOFFSET()");
+            }
+        }
+
         modelBuilder.Entity<NotificationTarget>(entity =>
         {
             entity.Property(e => e.Name).HasMaxLength(200);
             entity.Property(e => e.Destination).HasMaxLength(2048);
-        });
-
-        modelBuilder.Entity<SubscriptionTarget>(entity =>
-        {
-            entity.HasKey(e => new { e.AlertSubscriptionId, e.NotificationTargetId });
-            entity.HasOne(e => e.AlertSubscription)
-                .WithMany(s => s.Targets)
-                .HasForeignKey(e => e.AlertSubscriptionId)
-                .OnDelete(DeleteBehavior.Cascade);
-            entity.HasOne(e => e.NotificationTarget)
+            entity.HasOne<ApplicationUser>()
                 .WithMany()
-                .HasForeignKey(e => e.NotificationTargetId)
+                .HasForeignKey(e => e.OwnerId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
-        modelBuilder.Entity<AlertDelivery>(entity =>
+        modelBuilder.Entity<AlertSubscription>(entity =>
         {
-            entity.Property(e => e.LastError).HasMaxLength(1000);
-            entity.HasIndex(e => new { e.AlertId, e.NotificationTargetId }).IsUnique();
-            entity.HasIndex(e => new { e.Status, e.NextAttemptAt });
-            entity.HasOne(e => e.Alert)
-                .WithMany(a => a.Deliveries)
-                .HasForeignKey(e => e.AlertId)
-                .OnDelete(DeleteBehavior.Cascade);
-            entity.HasOne(e => e.NotificationTarget)
+            entity.Property(e => e.Name).HasMaxLength(200);
+            entity.HasOne<ApplicationUser>()
                 .WithMany()
-                .HasForeignKey(e => e.NotificationTargetId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .HasForeignKey(e => e.OwnerId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.ToTable(table => table.HasCheckConstraint(
+                "CK_AlertSubscriptions_FrequencyMinutes",
+                $"FrequencyMinutes IN ({string.Join(", ", AlertFrequency.PresetMinutes)})"));
         });
 
         modelBuilder.Entity<NewsSource>(entity =>
@@ -70,14 +89,6 @@ public sealed class AlertDbContext(DbContextOptions<AlertDbContext> options) : D
             entity.Property(e => e.Name).HasMaxLength(200);
             entity.Property(e => e.Url).HasMaxLength(450);
             entity.HasIndex(e => e.Url).IsUnique();
-        });
-
-        modelBuilder.Entity<AlertSubscription>(entity =>
-        {
-            entity.Property(e => e.Name).HasMaxLength(200);
-            entity.ToTable(table => table.HasCheckConstraint(
-                "CK_AlertSubscriptions_FrequencyMinutes",
-                $"FrequencyMinutes IN ({string.Join(", ", AlertFrequency.PresetMinutes)})"));
         });
 
         modelBuilder.Entity<SubscriptionSource>(entity =>
@@ -134,6 +145,34 @@ public sealed class AlertDbContext(DbContextOptions<AlertDbContext> options) : D
                 .WithMany()
                 .HasForeignKey(e => e.FeedItemId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<SubscriptionTarget>(entity =>
+        {
+            entity.HasKey(e => new { e.AlertSubscriptionId, e.NotificationTargetId });
+            entity.HasOne(e => e.AlertSubscription)
+                .WithMany(s => s.Targets)
+                .HasForeignKey(e => e.AlertSubscriptionId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.NotificationTarget)
+                .WithMany()
+                .HasForeignKey(e => e.NotificationTargetId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<AlertDelivery>(entity =>
+        {
+            entity.Property(e => e.LastError).HasMaxLength(1000);
+            entity.HasIndex(e => new { e.AlertId, e.NotificationTargetId }).IsUnique();
+            entity.HasIndex(e => new { e.Status, e.NextAttemptAt });
+            entity.HasOne(e => e.Alert)
+                .WithMany(a => a.Deliveries)
+                .HasForeignKey(e => e.AlertId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.NotificationTarget)
+                .WithMany()
+                .HasForeignKey(e => e.NotificationTargetId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
     }
 }

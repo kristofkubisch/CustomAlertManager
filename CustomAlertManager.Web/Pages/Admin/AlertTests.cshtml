@@ -1,0 +1,50 @@
+@page
+@model AlertTestsModel
+@{
+    ViewData["Title"] = "Test alerts";
+}
+
+<h1 class="h3 mb-2">Test alerts</h1>
+<p class="text-muted">
+    Runs one of your subscriptions now, using its sources and keyword filters on items from the last 24 hours, and sends the matches to its confirmed targets
+    in the same format as a real alert. Nothing is stored in the database, and the subscription's schedule is not changed.
+</p>
+
+@if (Model.Subscriptions.Count == 0)
+{
+    <p>No subscriptions exist yet.</p>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table align-middle">
+            <thead>
+                <tr>
+                    <th>Subscription</th>
+                    <th>Frequency</th>
+                    <th>Sources</th>
+                    <th>Confirmed targets</th>
+                    <th>Last checked</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var subscription in Model.Subscriptions)
+                {
+                    <tr>
+                        <td>@subscription.Name</td>
+                        <td>Every @subscription.FrequencyMinutes min</td>
+                        <td>@subscription.SourceCount</td>
+                        <td>@subscription.TargetCount</td>
+                        <td>@(subscription.LastRunAt.HasValue ? subscription.LastRunAt.Value.ToLocalTime().ToString("g") : "Never")</td>
+                        <td class="text-end">
+                            <form method="post" asp-page-handler="Run" asp-route-id="@subscription.Id">
+                                <button type="submit" class="btn btn-sm btn-primary">Run test</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

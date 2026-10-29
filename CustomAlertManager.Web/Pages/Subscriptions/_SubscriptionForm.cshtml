@@ -1,0 +1,70 @@
+@model CustomAlertManager.Web.Models.SubscriptionInput
+@using CustomAlertManager.Scheduler.Models
+@{
+    var sources = (List<CustomAlertManager.Data.Entities.NewsSource>)ViewData["Sources"]!;
+    var targets = (List<CustomAlertManager.Data.Entities.NotificationTarget>)ViewData["Targets"]!;
+}
+
+<div class="mb-3">
+    <label asp-for="Name" class="form-label"></label>
+    <input asp-for="Name" class="form-control" />
+    <span asp-validation-for="Name" class="text-danger"></span>
+</div>
+
+<div class="mb-3">
+    <label asp-for="FrequencyMinutes" class="form-label">How often to check</label>
+    <select asp-for="FrequencyMinutes" class="form-select">
+        @foreach (var minutes in AlertFrequency.PresetMinutes)
+        {
+            <option value="@minutes" selected="@(minutes == Model.FrequencyMinutes)">Every @minutes minute(s)</option>
+        }
+    </select>
+</div>
+
+<fieldset class="mb-3">
+    <legend class="h6">News sources</legend>
+    @if (sources.Count == 0)
+    {
+        <p class="text-muted">No news sources are available yet.</p>
+    }
+    @foreach (var source in sources)
+    {
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="SourceIds" value="@source.Id"
+                   id="source-@source.Id" checked="@Model.SourceIds.Contains(source.Id)" />
+            <label class="form-check-label" for="source-@source.Id">@source.Name</label>
+        </div>
+    }
+</fieldset>
+
+<div class="row mb-3">
+    <div class="col-md-6">
+        <label asp-for="IncludeKeywords" class="form-label">Include keywords</label>
+        <textarea asp-for="IncludeKeywords" class="form-control" rows="2"></textarea>
+        <div class="form-text">Alert when any of these appear in the title or summary. Separate with commas or new lines.</div>
+    </div>
+    <div class="col-md-6">
+        <label asp-for="ExcludeKeywords" class="form-label">Exclude keywords <span class="text-muted">(optional)</span></label>
+        <textarea asp-for="ExcludeKeywords" class="form-control" rows="2"></textarea>
+        <div class="form-text">Never alert when any of these appear.</div>
+    </div>
+</div>
+
+<fieldset class="mb-3">
+    <legend class="h6">Send alerts to</legend>
+    @if (targets.Count == 0)
+    {
+        <p class="text-muted">
+            You have no confirmed targets yet. <a asp-page="/Targets/Index">Add a target</a> first, or save without one.
+        </p>
+    }
+    @foreach (var target in targets)
+    {
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="TargetIds" value="@target.Id"
+                   id="target-@target.Id" checked="@Model.TargetIds.Contains(target.Id)" />
+            <label class="form-check-label" for="target-@target.Id">@target.Name (@target.Kind)</label>
+        </div>
+    }
+</fieldset>
+

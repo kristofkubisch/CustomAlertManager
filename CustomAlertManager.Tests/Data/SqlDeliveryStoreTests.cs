@@ -110,6 +110,7 @@ public class SqlDeliveryStoreTests(SqlDatabaseFixture fixture)
             Kind = kind,
             Destination = destination,
             IsEnabled = isEnabled,
+            IsVerified = true,
         };
         db.SubscriptionTargets.Add(new SubscriptionTarget
         {

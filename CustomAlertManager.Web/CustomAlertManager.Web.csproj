@@ -1,0 +1,20 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>76f67213-8beb-436c-a8ee-5a43136a72d7</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Identity.UI" Version="8.0.11" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CustomAlertManager.Data\CustomAlertManager.Data.csproj" />
+    <ProjectReference Include="..\CustomAlertManager.Scheduler\CustomAlertManager.Scheduler.csproj" />
+    <ProjectReference Include="..\CustomAlertManager.AlertSender\CustomAlertManager.AlertSender.csproj" />
+  </ItemGroup>
+
+</Project>

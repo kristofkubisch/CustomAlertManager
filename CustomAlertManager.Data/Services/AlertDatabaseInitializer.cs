@@ -10,8 +10,10 @@ public sealed record DevSeedOptions(string? SlackWebhookUrl, string? EmailAddres
 
 public static class AlertDatabaseInitializer
 {
-    // Applies pending migrations. When seed options are given and no subscriptions exist, adds one
-    // BBC News subscription, plus any targets that were configured.
+    private const string BbcUrl = "https://feeds.bbci.co.uk/news/rss.xml";
+
+    // Applies pending migrations. When seed options are given, adds the BBC News source if no sources
+    // exist, and one "Election watch" subscription if no subscriptions exist.
     public static async Task InitializeAsync(
         IDbContextFactory<AlertDbContext> contextFactory,
         DevSeedOptions? seed,
@@ -20,32 +22,37 @@ public static class AlertDatabaseInitializer
         await using var db = await contextFactory.CreateDbContextAsync(cancellationToken);
         await db.Database.MigrateAsync(cancellationToken);
 
-        if (seed is null || await db.AlertSubscriptions.AnyAsync(cancellationToken))
+        if (seed is null)
         {
             return;
         }
 
-        var now = DateTimeOffset.UtcNow;
-        var source = new NewsSource
+        var source = await db.NewsSources.FirstOrDefaultAsync(entity => entity.Url == BbcUrl, cancellationToken)
+            ?? new NewsSource { Name = "BBC News", Url = BbcUrl };
+        if (source.Id == 0)
         {
-            Name = "BBC News",
-            Url = "https://feeds.bbci.co.uk/news/rss.xml",
-        };
+            db.NewsSources.Add(source);
+        }
 
-        var subscription = new AlertSubscription
+        if (!await db.AlertSubscriptions.AnyAsync(cancellationToken))
         {
-            Name = "Election watch",
-            FrequencyMinutes = AlertFrequency.PresetMinutes[0],
-            CreatedAt = now,
-            LastAlertAt = now,
-        };
-        subscription.Sources.Add(new SubscriptionSource { NewsSource = source });
-        subscription.Keywords.Add(new SubscriptionKeyword { Kind = KeywordKind.Include, Term = "election" });
+            var now = DateTimeOffset.UtcNow;
+            var subscription = new AlertSubscription
+            {
+                Name = "Election watch",
+                FrequencyMinutes = AlertFrequency.PresetMinutes[0],
+                CreatedAt = now,
+                LastAlertAt = now,
+            };
+            subscription.Sources.Add(new SubscriptionSource { NewsSource = source });
+            subscription.Keywords.Add(new SubscriptionKeyword { Kind = KeywordKind.Include, Term = "election" });
 
-        AddTarget(subscription, "Dev Slack", ChannelKind.Slack, seed.SlackWebhookUrl);
-        AddTarget(subscription, "Dev email", ChannelKind.Email, seed.EmailAddress);
+            AddTarget(subscription, "Dev Slack", ChannelKind.Slack, seed.SlackWebhookUrl);
+            AddTarget(subscription, "Dev email", ChannelKind.Email, seed.EmailAddress);
 
-        db.AlertSubscriptions.Add(subscription);
+            db.AlertSubscriptions.Add(subscription);
+        }
+
         await db.SaveChangesAsync(cancellationToken);
     }
 
@@ -56,7 +63,8 @@ public static class AlertDatabaseInitializer
             return;
         }
 
-        var target = new NotificationTarget { Name = name, Kind = kind, Destination = destination };
+        // Seeded targets are trusted, so they skip email confirmation.
+        var target = new NotificationTarget { Name = name, Kind = kind, Destination = destination, IsVerified = true };
         subscription.Targets.Add(new SubscriptionTarget { NotificationTarget = target });
     }
 }

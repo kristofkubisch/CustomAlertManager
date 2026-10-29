@@ -1,0 +1,14 @@
+@page "{id:int}"
+@model EditModel
+@{
+    ViewData["Title"] = "Edit subscription";
+}
+
+<h1 class="h3 mb-3">Edit subscription</h1>
+
+<form method="post">
+    @if (!ViewContext.ModelState.IsValid) { <div asp-validation-summary="All" class="alert alert-danger"></div> }
+    <partial name="_SubscriptionForm" model="Model.Input" view-data="ViewData" />
+    <button type="submit" class="btn btn-primary">Save changes</button>
+    <a class="btn btn-link" asp-page="Index">Back to subscriptions</a>
+</form>

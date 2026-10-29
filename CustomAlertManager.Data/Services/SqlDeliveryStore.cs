@@ -1,6 +1,7 @@
 using CustomAlertManager.Common.Models;
 using CustomAlertManager.Data.Entities;
 using CustomAlertManager.AlertSender.Models;
+using CustomAlertManager.AlertSender.Services;
 using CustomAlertManager.Scheduler.Interfaces;
 using CustomAlertManager.Scheduler.Models;
 using Microsoft.EntityFrameworkCore;
@@ -18,7 +19,9 @@ public sealed class SqlDeliveryStore(IDbContextFactory<AlertDbContext> contextFa
     {
         await using var db = await contextFactory.CreateDbContextAsync(cancellationToken);
         var rows = await db.AlertDeliveries
-            .Where(delivery => delivery.Status == DeliveryStatus.Pending && delivery.NextAttemptAt <= now)
+            .Where(delivery => delivery.Status == DeliveryStatus.Pending
+                && delivery.NextAttemptAt <= now
+                && delivery.NotificationTarget != null)
             .OrderBy(delivery => delivery.NextAttemptAt)
             .Take(limit)
             .Include(delivery => delivery.NotificationTarget)
@@ -35,12 +38,12 @@ public sealed class SqlDeliveryStore(IDbContextFactory<AlertDbContext> contextFa
         return rows
             .Select(delivery => new PendingDelivery(
                 DeliveryId: delivery.Id,
-                Kind: delivery.NotificationTarget.Kind,
+                Kind: delivery.NotificationTarget!.Kind,
                 Destination: delivery.NotificationTarget.Destination,
                 Attempts: delivery.Attempts,
-                Message: new AlertMessage(
-                    Title: $"Alert: {delivery.Alert.AlertSubscription.Name}",
-                    Items: delivery.Alert.Items
+                Message: AlertMessageFactory.Create(
+                    subscriptionName: delivery.Alert.AlertSubscription.Name,
+                    items: delivery.Alert.Items
                         .OrderByDescending(item => item.FeedItem.PublishedAt)
                         .Select(item => ToFeedItem(item.FeedItem))
                         .ToList())))

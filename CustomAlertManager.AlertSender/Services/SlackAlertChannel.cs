@@ -9,18 +9,24 @@ public sealed class SlackAlertChannel(HttpClient httpClient) : IAlertChannel
 {
     public ChannelKind Kind => ChannelKind.Slack;
 
+    public static bool IsValidWebhook(string destination) =>
+        Uri.TryCreate(destination, UriKind.Absolute, out var webhook)
+        && webhook.Scheme == Uri.UriSchemeHttps
+        && webhook.Host == "hooks.slack.com";
+
     public async Task<DeliveryResult> SendAsync(string destination, AlertMessage message, CancellationToken cancellationToken)
     {
-        if (!Uri.TryCreate(destination, UriKind.Absolute, out var webhook)
-            || webhook.Scheme != Uri.UriSchemeHttps
-            || webhook.Host != "hooks.slack.com")
+        if (!IsValidWebhook(destination))
         {
             return DeliveryResult.Permanent("Invalid Slack webhook URL. It must be an https://hooks.slack.com/ URL.");
         }
 
         try
         {
-            using var response = await httpClient.PostAsJsonAsync(webhook, new { text = FormatText(message) }, cancellationToken);
+            using var response = await httpClient.PostAsJsonAsync(
+                new Uri(destination),
+                new { text = FormatText(message) },
+                cancellationToken);
             return HttpResultClassifier.Classify(response.StatusCode);
         }
         catch (HttpRequestException ex)

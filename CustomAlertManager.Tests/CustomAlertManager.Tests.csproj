@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="6.0.4" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="8.0.11" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageReference Include="xunit" Version="2.9.3" />
@@ -26,6 +27,7 @@
     <ProjectReference Include="..\CustomAlertManager.Scheduler\CustomAlertManager.Scheduler.csproj" />
     <ProjectReference Include="..\CustomAlertManager.Prototype\CustomAlertManager.Prototype.csproj" />
     <ProjectReference Include="..\CustomAlertManager.Data\CustomAlertManager.Data.csproj" />
+    <ProjectReference Include="..\CustomAlertManager.Web\CustomAlertManager.Web.csproj" />
   </ItemGroup>
 
   <ItemGroup>

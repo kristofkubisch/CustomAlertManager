@@ -102,6 +102,24 @@ public class AlertEngineTests
         Assert.Single(DueSubscriptions.Select([subscription], Now));
     }
 
+    // The worker wakes on a timer, so the gap between two runs is a little under the exact interval.
+    // The subscription must still count as due, otherwise it slips a whole poll interval.
+    [Fact]
+    public void DueSubscriptions_RanJustBeforeFrequency_IsDue()
+    {
+        var subscription = Subscription(1, [], [], Now.AddDays(-1), frequency: TimeSpan.FromMinutes(15), lastRunAt: Now.AddMinutes(-15).AddSeconds(1));
+
+        Assert.Single(DueSubscriptions.Select([subscription], Now));
+    }
+
+    [Fact]
+    public void DueSubscriptions_RanWellBeforeFrequency_IsNotDue()
+    {
+        var subscription = Subscription(1, [], [], Now.AddDays(-1), frequency: TimeSpan.FromMinutes(15), lastRunAt: Now.AddMinutes(-14));
+
+        Assert.Empty(DueSubscriptions.Select([subscription], Now));
+    }
+
     private static FeedItem Item(string title, string link, DateTimeOffset publishedAt) =>
         new("Source", title, string.Empty, link, publishedAt, link);
 

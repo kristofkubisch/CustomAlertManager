@@ -2,13 +2,14 @@ using CustomAlertManager.Scheduler.Models;
 
 namespace CustomAlertManager.Data.Entities;
 
-public sealed class AlertDelivery
+public sealed class AlertDelivery : TimestampedEntity
 {
     public int Id { get; set; }
 
     public int AlertId { get; set; }
 
-    public int NotificationTargetId { get; set; }
+    // Cleared when the target is deleted, so the delivery history survives.
+    public int? NotificationTargetId { get; set; }
 
     public DeliveryStatus Status { get; set; }
 
@@ -22,5 +23,5 @@ public sealed class AlertDelivery
 
     public Alert Alert { get; set; } = null!;
 
-    public NotificationTarget NotificationTarget { get; set; } = null!;
+    public NotificationTarget? NotificationTarget { get; set; }
 }

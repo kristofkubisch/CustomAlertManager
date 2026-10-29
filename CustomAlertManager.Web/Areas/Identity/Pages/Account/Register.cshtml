@@ -1,0 +1,46 @@
+@page
+@model CustomAlertManager.Web.Areas.Identity.Pages.Account.RegisterModel
+@{
+    ViewData["Title"] = "Sign up";
+    Layout = "_Layout";
+}
+
+<h1 class="h3 mb-3">Sign up</h1>
+
+<div class="row">
+    <div class="col-md-6">
+        <form method="post" asp-route-returnUrl="@Model.ReturnUrl">
+            @if (!ViewContext.ModelState.IsValid) { <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div> }
+
+            <div class="mb-3">
+                <label asp-for="Input.Username" class="form-label"></label>
+                <input asp-for="Input.Username" class="form-control" autocomplete="username" />
+                <span asp-validation-for="Input.Username" class="text-danger"></span>
+                <div class="form-text">You use this name to log in.</div>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Input.Email" class="form-label"></label>
+                <input asp-for="Input.Email" class="form-control" autocomplete="email" />
+                <span asp-validation-for="Input.Email" class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Input.Password" class="form-label"></label>
+                <input asp-for="Input.Password" class="form-control" autocomplete="new-password" />
+                <span asp-validation-for="Input.Password" class="text-danger"></span>
+                <div class="form-text">At least 10 characters.</div>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Input.ConfirmPassword" class="form-label"></label>
+                <input asp-for="Input.ConfirmPassword" class="form-control" autocomplete="new-password" />
+                <span asp-validation-for="Input.ConfirmPassword" class="text-danger"></span>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Sign up</button>
+        </form>
+
+        <p class="mt-3">Already have an account? <a asp-area="Identity" asp-page="/Account/Login" asp-route-returnUrl="@Model.ReturnUrl">Log in</a></p>
+    </div>
+</div>

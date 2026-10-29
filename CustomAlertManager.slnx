@@ -6,5 +6,6 @@
   <Project Path="CustomAlertManager.RssReader/CustomAlertManager.RssReader.csproj" />
   <Project Path="CustomAlertManager.Scheduler/CustomAlertManager.Scheduler.csproj" />
   <Project Path="CustomAlertManager.Tests/CustomAlertManager.Tests.csproj" />
+  <Project Path="CustomAlertManager.Web/CustomAlertManager.Web.csproj" />
   <Project Path="CustomAlertManager.Worker/CustomAlertManager.Worker.csproj" />
 </Solution>

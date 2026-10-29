@@ -74,7 +74,7 @@ public sealed class SqlAlertStore(IDbContextFactory<AlertDbContext> contextFacto
                 Summary = candidate.Item.Summary,
                 Link = candidate.Item.Link,
                 PublishedAt = candidate.Item.PublishedAt,
-                FirstSeenAt = now,
+                CreatedAt = now,
             });
         }
 
@@ -113,7 +113,9 @@ public sealed class SqlAlertStore(IDbContextFactory<AlertDbContext> contextFacto
             }
 
             var targetIds = await db.SubscriptionTargets
-                .Where(link => link.AlertSubscriptionId == subscriptionId && link.NotificationTarget.IsEnabled)
+                .Where(link => link.AlertSubscriptionId == subscriptionId
+                    && link.NotificationTarget.IsEnabled
+                    && link.NotificationTarget.IsVerified)
                 .Select(link => link.NotificationTargetId)
                 .ToListAsync(cancellationToken);
 

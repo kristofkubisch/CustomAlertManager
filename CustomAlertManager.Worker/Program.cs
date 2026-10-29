@@ -24,11 +24,7 @@ builder.Services.AddHttpClient<IFeedFetcher, HttpFeedFetcher>(client =>
 });
 
 builder.Services.AddHttpClient<SlackAlertChannel>(client => client.Timeout = TimeSpan.FromSeconds(15));
-builder.Services.AddHttpClient<SendGridAlertChannel>(client =>
-{
-    client.BaseAddress = new Uri("https://api.sendgrid.com/");
-    client.Timeout = TimeSpan.FromSeconds(15);
-});
+builder.Services.AddSingleton<SendGridEmailSender>();
 builder.Services.AddSingleton(new SendGridOptions(
     ApiKey: configuration["SendGrid:ApiKey"] ?? string.Empty,
     FromAddress: configuration["SendGrid:FromAddress"] ?? string.Empty,
@@ -36,7 +32,7 @@ builder.Services.AddSingleton(new SendGridOptions(
 
 builder.Services.AddScoped<IAlertEngine, AlertEngine>();
 builder.Services.AddTransient<IAlertChannel>(provider => provider.GetRequiredService<SlackAlertChannel>());
-builder.Services.AddTransient<IAlertChannel>(provider => provider.GetRequiredService<SendGridAlertChannel>());
+builder.Services.AddTransient<IAlertChannel>(provider => new SendGridAlertChannel(provider.GetRequiredService<SendGridEmailSender>()));
 builder.Services.AddScoped<IAlertDispatcher, AlertDispatcher>();
 builder.Services.AddHostedService<AlertWorker>();
 

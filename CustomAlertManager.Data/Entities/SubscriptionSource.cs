@@ -1,6 +1,6 @@
 namespace CustomAlertManager.Data.Entities;
 
-public sealed class SubscriptionSource
+public sealed class SubscriptionSource : TimestampedEntity
 {
     public int AlertSubscriptionId { get; set; }
 

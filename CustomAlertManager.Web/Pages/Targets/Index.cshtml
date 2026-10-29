@@ -1,0 +1,119 @@
+@page
+@model IndexModel
+@using CustomAlertManager.AlertSender.Models
+@{
+    ViewData["Title"] = "Alert targets";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <h1 class="h3 mb-0">Alert targets</h1>
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addTargetModal">Add target</button>
+</div>
+<p class="text-muted">Where your subscriptions send alerts. Email addresses must be confirmed before they receive anything.</p>
+
+<div class="table-responsive mb-4">
+    <table class="table align-middle">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Destination</th>
+                <th>Status</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (Model.Targets.Count == 0)
+            {
+                <tr><td colspan="5" class="text-muted">You have no targets yet.</td></tr>
+            }
+            @foreach (var target in Model.Targets)
+            {
+                <tr>
+                    <td>@target.Name</td>
+                    <td>@target.Kind</td>
+                    <td class="text-break">@target.Destination</td>
+                    <td>
+                        @if (!target.IsVerified)
+                        {
+                            <span class="badge bg-warning text-dark">Awaiting confirmation</span>
+                        }
+                        else if (!target.IsEnabled)
+                        {
+                            <span class="badge bg-secondary">Disabled</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-success">Active</span>
+                        }
+                    </td>
+                    <td class="text-end text-nowrap">
+                        @if (!target.IsVerified)
+                        {
+                            <form method="post" class="d-inline" asp-page-handler="Resend" asp-route-id="@target.Id">
+                                <button type="submit" class="btn btn-sm btn-outline-primary">Resend confirmation</button>
+                            </form>
+                        }
+                        else
+                        {
+                            <form method="post" class="d-inline" asp-page-handler="Toggle" asp-route-id="@target.Id">
+                                <button type="submit" class="btn btn-sm btn-outline-secondary">@(target.IsEnabled ? "Disable" : "Enable")</button>
+                            </form>
+                        }
+                        <form method="post" class="d-inline" asp-page-handler="Delete" asp-route-id="@target.Id"
+                              onsubmit="return confirm('Delete this target? It will be removed from all subscriptions.');">
+                            <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+<div class="modal fade" id="addTargetModal" tabindex="-1" aria-labelledby="addTargetModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <form method="post" asp-page-handler="Add" class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title h5" id="addTargetModalLabel">Add a target</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                @if (!ViewContext.ModelState.IsValid) { <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div> }
+                <div class="mb-3">
+                    <label asp-for="Input.Name" class="form-label"></label>
+                    <input asp-for="Input.Name" class="form-control" />
+                    <span asp-validation-for="Input.Name" class="text-danger"></span>
+                </div>
+                <div class="mb-3">
+                    <label asp-for="Input.Kind" class="form-label">Type</label>
+                    <select asp-for="Input.Kind" class="form-select">
+                        <option value="@ChannelKind.Email">Email</option>
+                        <option value="@ChannelKind.Slack">Slack webhook</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label asp-for="Input.Destination" class="form-label">Email address or Slack webhook URL</label>
+                    <input asp-for="Input.Destination" class="form-control" />
+                    <span asp-validation-for="Input.Destination" class="text-danger"></span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-link" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-primary">Add target</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    @if (Model.ShowAddModal)
+    {
+        <script>
+            // Reopen the add form with its validation errors after a failed submit.
+            document.addEventListener("DOMContentLoaded", function () {
+                new bootstrap.Modal(document.getElementById("addTargetModal")).show();
+            });
+        </script>
+    }
+}

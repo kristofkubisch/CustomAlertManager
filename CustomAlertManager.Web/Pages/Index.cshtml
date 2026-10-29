@@ -1,0 +1,20 @@
+﻿@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Home";
+}
+
+<div class="p-4 p-md-5 mb-4 bg-white border rounded">
+    <h1 class="display-6">CustomAlertManager</h1>
+    <p class="lead">Get an alert by email or Slack when news matching your keywords is published.</p>
+    @if (User.Identity?.IsAuthenticated == true)
+    {
+        <a class="btn btn-primary me-2" asp-page="/Subscriptions/Index">Your subscriptions</a>
+        <a class="btn btn-outline-primary" asp-page="/Targets/Index">Your alert targets</a>
+    }
+    else
+    {
+        <a class="btn btn-primary me-2" asp-area="Identity" asp-page="/Account/Register">Sign up</a>
+        <a class="btn btn-outline-primary" asp-area="Identity" asp-page="/Account/Login">Log in</a>
+    }
+</div>

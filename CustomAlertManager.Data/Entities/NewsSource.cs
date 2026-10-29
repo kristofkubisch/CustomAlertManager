@@ -1,6 +1,6 @@
 namespace CustomAlertManager.Data.Entities;
 
-public sealed class NewsSource
+public sealed class NewsSource : TimestampedEntity
 {
     public int Id { get; set; }
 
